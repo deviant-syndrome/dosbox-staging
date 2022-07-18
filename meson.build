@@ -437,7 +437,7 @@ configure_file(input : 'src/config.h.in', output : 'config.h',
 
 # dosbox executable
 #
-version_file = vcs_tag(input : 'src/version.cpp.in', output : 'version.cpp')
+version_file = 'src/version.cpp'
 dosbox_sources = ['src/main.cpp', 'src/dosbox.cpp', version_file]
 
 # Add Windows resources file if building on Windows

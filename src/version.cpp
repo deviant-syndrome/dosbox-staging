@@ -22,7 +22,7 @@
 
 const char *DOSBOX_GetDetailedVersion() noexcept
 {
-	static const char version[] = "@VCS_TAG@";
+	static const char version[] = "0.78.1-DEVIANT";
 	// Git tag names start with a letter v (by convention).
 	if (version[0] == 'v')
 		return version + 1;
