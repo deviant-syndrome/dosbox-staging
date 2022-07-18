@@ -37,6 +37,36 @@ bool MIDI_Available();
 void MIDI_ListAll(Program *output_handler);
 void MIDI_RawOutByte(uint8_t data);
 
+
+enum {MOUT_MPU,MOUT_SBUART,MOUT_GUS,MOUT_THRU};
+
+enum {MDEV_MPU,MDEV_SBUART,MDEV_GUS,MDEV_SB16,MDEV_NONE};
+
+void MIDI_RawOutByte(Bit8u data, Bit8u slot);
+Bits MIDI_InputSysex(Bit8u *sysex,Bitu len, bool abort);
+void MIDI_RawOutRTByte(Bit8u data);
+void MIDI_RawOutThruRTByte(Bit8u data);
+void MIDI_ClearBuffer(Bit8u slot);
+bool MIDI_Available(void);
+Bit32s MIDI_ToggleInputDevice(Bit32u device,bool status);
+
+void MIDI_InputMsg(Bit8u msg[4], Bitu len);
+// void MPU401_InputMsg(Bit8u msg[4]);
+void SB_UART_InputMsg(Bit8u msg[4], Bitu len);
+// void GUS_UART_In putMsg(Bit8u msg[4]);
+
+// Bits MPU401_InputSysex(Bit8u* buffer,Bitu len,bool abort);
+Bits SB_UART_InputSysex(Bit8u* buffer,Bitu len, bool abort);
+// Bits GUS_UART_InputSysex(Bit8u* buffer,Bitu len,bool abort);
+
+// void MPU401_SetupTxHandler(void);
+// void MPU401_SetTx(bool status);
+
+// void SB16_MPU401_IrqToggle(bool status);
+
+// Bit32s MIDI_ToggleInputDevice(Bit32u device,bool status);
+
+
 #if C_FLUIDSYNTH
 void FLUID_AddConfigSection(const config_ptr_t &conf);
 #endif

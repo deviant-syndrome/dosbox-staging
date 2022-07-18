@@ -23,8 +23,11 @@
 #define DOSBOX_MIDI_COREMIDI_H
 
 #include "midi_handler.h"
+#include "midi.h"
+#include <ctype.h>
+#include <stdio.h>
 
-#if C_COREMIDI
+#if 1//C_COREMIDI
 
 #include <CoreMIDI/MIDIServices.h>
 #include <sstream>
@@ -35,8 +38,10 @@
 class MidiHandler_coremidi final : public MidiHandler {
 private:
 	MIDIPortRef m_port;
+	MIDIPortRef m_outPort;	
 	MIDIClientRef m_client;
 	MIDIEndpointRef m_endpoint;
+	MIDIEndpointRef m_source;
 	MIDIPacket *m_pCurPacket;
 
 public:
@@ -49,6 +54,60 @@ public:
 	{}
 
 	const char *GetName() const override { return "coremidi"; }
+
+	static void handleInput(const MIDIPacketList *pktlist, void * __nullable srcConnRefCon) {
+		if (pktlist->numPackets == 1) {
+			// Bit8u* p;
+			Bit8u msg[4];
+			Bit8u start[4];
+
+			Bit8u * rawPointer;
+			rawPointer = (Bit8u *) malloc(pktlist->packet->length);
+			for (int i = 0; i < pktlist->packet->length; i++) {
+				if (i < 4) {
+					msg[i] = pktlist->packet->data[i];
+				}
+				rawPointer[i] = pktlist->packet->data[i];	
+			};
+
+			if (msg[0] == 0xF0) { // SysEx stuff
+
+			    if (pktlist->packet->length == 6) {
+					// rawPointer[2] = 0x01;
+					for (int j = 0; j < pktlist->packet->length; j++) {
+						LOG_MSG("MIDI:coremidi: SYSEX %X",pktlist->packet->data[j] );
+					};
+					LOG_MSG("MIDI:coremidi: --------------");
+				};
+				// MIDI_InputMsg(start, 1);
+				MIDI_InputSysex(rawPointer, pktlist->packet->length, false);
+			} else {
+				MIDI_InputMsg(msg, pktlist->packet->length);
+			};
+		} else {
+			LOG_MSG("MIDI:coremidi: expected 1 packet but got %i", pktlist->numPackets);
+		};		
+	}
+
+void CheckError(OSStatus error, const char *operation) {
+  if (error == noErr) {
+	LOG_MSG(operation);
+    return;
+
+  }
+  
+  char errorString[20];
+  *(UInt32 *)(errorString + 1) = CFSwapInt32HostToBig(error); // we have 4 bytes and we put them in Big-endian ordering. 1st byte the biggest
+  if (isprint(errorString[1]) && isprint(errorString[2]) &&
+      isprint(errorString[3]) && isprint(errorString[4])) {
+    errorString[0] = errorString[5] = '\'';
+    errorString[6] = '\0';
+  } else {
+    sprintf(errorString, "%d", (int) error);
+  }
+  LOG_MSG("Error: %s (%s)\n", operation, errorString);
+
+}
 
 	bool Open(const char *conf) override
 	{
@@ -80,11 +139,29 @@ public:
 				}
 			}
 		}
+
+		for(Bitu i = 0; i<numDests; i++) {
+					MIDIEndpointRef dummy = MIDIGetSource(i);
+					if (!dummy) continue;
+					CFStringRef midiname = 0;
+					if (MIDIObjectGetStringProperty(dummy,kMIDIPropertyDisplayName,&midiname) == noErr) {
+						const char* s = CFStringGetCStringPtr(midiname,kCFStringEncodingMacRoman);
+						if (s) {
+							LOG_MSG("MIDI:coremidi: Found device %s at %i", s, i);
+							std::string devname(s);
+							lowcase(devname);
+						}
+					}
+				}
+
 		if (destId >= numDests) destId = 0;
 		if (destId < numDests)
 		{
 			m_endpoint = MIDIGetDestination(destId);
+			m_source = MIDIGetSource(destId);
 		}
+
+
 
 		// Create a MIDI client and port
 		MIDIClientCreate(CFSTR("MyClient"), 0, 0, &m_client);
@@ -95,7 +172,17 @@ public:
 			return false;
 		}
 
+
+	MIDIReadBlock receiveBlock = ^void (const MIDIPacketList *pktlist, void * __nullable srcConnRefCon) {
+		handleInput(pktlist,  srcConnRefCon);
+  	};
+
 		MIDIOutputPortCreate(m_client, CFSTR("MyOutPort"), &m_port);
+		CheckError(MIDIInputPortCreateWithBlock(m_client, CFSTR("MyInPort"), &m_outPort, receiveBlock), "MIDI:coremidi: callback setup"); 
+		CheckError(MIDIPortConnectSource(m_outPort, m_source, &m_source), "MIDI:coremidi: routing setup");
+		if (m_outPort) {
+			LOG_MSG("MIDI:coremidi: Satan is real");
+		}
 
 		if (!m_port)
 		{
@@ -114,6 +201,7 @@ public:
 
 		// Dispose the port
 		MIDIPortDispose(m_port);
+		MIDIPortDispose(m_outPort);
 
 		// Dispose the client
 		MIDIClientDispose(m_client);
@@ -135,7 +223,7 @@ public:
 		
 		// Add msg to the MIDIPacketList
 		MIDIPacketListAdd(packetList, (ByteCount)sizeof(packetBuf), m_pCurPacket, (MIDITimeStamp)0, len, msg);
-		
+
 		// Send the MIDIPacketList
 		MIDISend(m_port,m_endpoint,packetList);
 	}

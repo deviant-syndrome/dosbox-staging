@@ -49,6 +49,10 @@ public:
 		return true;
 	}
 
+	virtual bool OpenInput(const char * inconf) {
+		return false;
+	};
+
 	virtual void Close() {}
 
 	void HaltSequence()

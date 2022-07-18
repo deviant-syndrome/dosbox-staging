@@ -551,6 +551,9 @@ void DOSBOX_Init() {
 	                "320x200 or 640x400; where as square-pixel modes, such as 640x480\n"
 	                "and 800x600, will be displayed as-is.");
 
+ 	secprop->Add_string("inconfig", Property::Changeable::OnlyAtStart, "none");
+	secprop->Add_string("midioptions", Property::Changeable::OnlyAtStart, "autoinput");
+	
 	pstring = secprop->Add_string("monochrome_palette", always, "white");
 	pstring->Set_help("Select default palette for monochrome display.\n"
 	                  "Works only when emulating hercules or cga_mono.\n"
